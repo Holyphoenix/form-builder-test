@@ -46,7 +46,7 @@ export class FormBuilder extends LitElement {
   @state() private dragOverCell: { row: number; column: number } | null = null;
   @state() private resizingField: { field: FormField; edge: string } | null = null;
   
-  private readonly ROW_HEIGHT = 98; // 90px cell + 8px gap
+  private readonly ROW_HEIGHT = 88; // 80px min cell + 8px gap
   private readonly OVERSCAN = 3;
 
   static styles = css`
@@ -175,8 +175,7 @@ export class FormBuilder extends LitElement {
     }
 
     .grid-cell {
-      min-height: 90px;
-      height: 90px;
+      min-height: 80px;
       padding: 6px;
       background: white;
       border: 2px solid #ddd;
@@ -593,9 +592,9 @@ export class FormBuilder extends LitElement {
       
       if (edge === 'right' || edge === 'corner') {
         // Calculate new column span based on width change
-        // Use a threshold of 40% into next column for snapping (instead of 50% with rounding)
+        // Use a threshold of 30% into next column for snapping (even earlier)
         const newWidth = startWidth + deltaX;
-        const newColumnSpan = Math.max(1, Math.floor(newWidth / columnWidth + 0.4));
+        const newColumnSpan = Math.max(1, Math.floor(newWidth / columnWidth + 0.3));
         
         // Update field's columnSpan
         this.fields = this.fields.map(f => 
@@ -608,9 +607,9 @@ export class FormBuilder extends LitElement {
       
       if (edge === 'bottom' || edge === 'corner') {
         // Calculate new row span based on height change
-        // Use a threshold of 40% into next row for snapping
+        // Use a threshold of 30% into next row for snapping
         const newHeight = startHeight + deltaY;
-        const newRowSpan = Math.max(1, Math.floor(newHeight / this.ROW_HEIGHT + 0.4));
+        const newRowSpan = Math.max(1, Math.floor(newHeight / this.ROW_HEIGHT + 0.3));
         
         // Update field's rowSpan
         this.fields = this.fields.map(f => 
@@ -840,8 +839,11 @@ export class FormBuilder extends LitElement {
                     style="--columns: ${this.columns}; transform: translateY(${virtualRow.start}px)"
                   >
                     ${rowFields.map((field, colIndex) => {
+                      // Check if this cell should be highlighted during drag
+                      const draggedColumnSpan = this.draggedField?.columnSpan || 1;
                       const isDragOver = this.dragOverCell?.row === virtualRow.index && 
-                                        this.dragOverCell?.column === colIndex;
+                                        this.dragOverCell?.column <= colIndex &&
+                                        colIndex < (this.dragOverCell?.column || 0) + draggedColumnSpan;
                       
                       if (!field) {
                         return html`
