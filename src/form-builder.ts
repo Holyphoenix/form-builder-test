@@ -41,6 +41,10 @@ export class FormBuilder extends LitElement {
   @state() private selectedFieldIds: Set<string> = new Set();
   @state() private scrollTop = 0;
   @state() private containerHeight = 600;
+  @state() private draggedField: FormField | null = null;
+  @state() private draggedFieldType: string | null = null;
+  @state() private dragOverCell: { row: number; column: number } | null = null;
+  @state() private resizingField: { field: FormField; edge: string } | null = null;
   
   private readonly ROW_HEIGHT = 96;
   private readonly OVERSCAN = 3;
@@ -58,12 +62,76 @@ export class FormBuilder extends LitElement {
       overflow: hidden;
     }
 
+    .field-palette {
+      width: 200px;
+      background: #f5f5f5;
+      border-right: 1px solid #ddd;
+      padding: 16px;
+      overflow-y: auto;
+    }
+
+    .field-palette h3 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      color: #333;
+    }
+
+    .palette-item {
+      padding: 12px;
+      margin-bottom: 8px;
+      background: white;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+      cursor: grab;
+      font-size: 14px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .palette-item:hover {
+      border-color: #4CAF50;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .palette-item:active {
+      cursor: grabbing;
+    }
+
+    .palette-item-icon {
+      font-size: 18px;
+    }
+
     .grid-container {
       flex: 1;
       display: flex;
       flex-direction: column;
       overflow: hidden;
       border-right: 1px solid #ddd;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 16px;
+      background: #fff;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .toolbar-label {
+      font-weight: 600;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .toolbar-input {
+      width: 80px;
+      padding: 6px 8px;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      font-size: 14px;
     }
 
     .grid-header {
@@ -112,11 +180,13 @@ export class FormBuilder extends LitElement {
       background: white;
       border: 2px solid #ddd;
       border-radius: 4px;
-      cursor: pointer;
+      cursor: move;
       transition: all 0.2s;
       display: flex;
       flex-direction: column;
       gap: 4px;
+      overflow: hidden;
+      position: relative;
     }
 
     .grid-cell:hover {
@@ -130,6 +200,12 @@ export class FormBuilder extends LitElement {
       box-shadow: 0 2px 8px rgba(33,150,243,0.3);
     }
 
+    .grid-cell.drag-over {
+      border-color: #FF9800;
+      background: #FFF3E0;
+      border-style: dashed;
+    }
+
     .grid-cell.empty {
       background: #fafafa;
       border-style: dashed;
@@ -141,16 +217,26 @@ export class FormBuilder extends LitElement {
       box-shadow: none;
     }
 
+    .grid-cell.empty.drag-over {
+      border-color: #4CAF50;
+      background: #E8F5E9;
+    }
+
     .field-label {
       font-weight: 600;
       font-size: 14px;
       color: #333;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .field-type {
       font-size: 12px;
       color: #666;
       text-transform: uppercase;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .field-input {
@@ -159,6 +245,7 @@ export class FormBuilder extends LitElement {
       border: 1px solid #ddd;
       border-radius: 3px;
       font-size: 13px;
+      box-sizing: border-box;
     }
 
     .field-input:focus {
@@ -167,8 +254,54 @@ export class FormBuilder extends LitElement {
     }
 
     textarea.field-input {
-      resize: vertical;
+      resize: none;
       min-height: 60px;
+      max-height: 60px;
+    }
+
+    .resize-handle {
+      position: absolute;
+      background: transparent;
+      z-index: 10;
+    }
+
+    .resize-handle:hover {
+      background: #2196F3;
+    }
+
+    .resize-handle.resize-right {
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+      cursor: col-resize;
+    }
+
+    .resize-handle.resize-bottom {
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 6px;
+      cursor: row-resize;
+    }
+
+    .resize-handle.resize-corner {
+      right: 0;
+      bottom: 0;
+      width: 12px;
+      height: 12px;
+      cursor: nwse-resize;
+    }
+
+    .resize-handle.resize-corner::after {
+      content: '';
+      position: absolute;
+      right: 2px;
+      bottom: 2px;
+      width: 8px;
+      height: 8px;
+      border-right: 2px solid #999;
+      border-bottom: 2px solid #999;
     }
 
     .sidebar {
@@ -176,6 +309,8 @@ export class FormBuilder extends LitElement {
       padding: 16px;
       background: #fafafa;
       overflow-y: auto;
+      display: flex;
+      flex-direction: column;
     }
 
     .sidebar h3 {
@@ -198,6 +333,8 @@ export class FormBuilder extends LitElement {
       font-weight: 600;
       color: #555;
       margin-bottom: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .attribute-input {
@@ -206,6 +343,7 @@ export class FormBuilder extends LitElement {
       border: 1px solid #ddd;
       border-radius: 3px;
       font-size: 13px;
+      box-sizing: border-box;
     }
 
     .button {
@@ -243,19 +381,6 @@ export class FormBuilder extends LitElement {
       padding: 32px 16px;
     }
 
-    .resize-handle {
-      position: absolute;
-      right: 0;
-      top: 0;
-      bottom: 0;
-      width: 4px;
-      cursor: col-resize;
-      background: transparent;
-    }
-
-    .resize-handle:hover {
-      background: #4CAF50;
-    }
   `;
 
   firstUpdated() {
@@ -349,6 +474,101 @@ export class FormBuilder extends LitElement {
       this.fields = [...this.fields, newField];
       this.emitLayoutChange();
     }
+  }
+
+  // Drag and Drop Methods
+  private handlePaletteDragStart(event: DragEvent, fieldType: string) {
+    this.draggedFieldType = fieldType;
+    event.dataTransfer!.effectAllowed = 'copy';
+    event.dataTransfer!.setData('fieldType', fieldType);
+  }
+
+  private handleFieldDragStart(event: DragEvent, field: FormField) {
+    this.draggedField = field;
+    event.dataTransfer!.effectAllowed = 'move';
+    event.dataTransfer!.setData('fieldId', field.id);
+    
+    // Make the dragged element semi-transparent
+    const target = event.target as HTMLElement;
+    target.style.opacity = '0.5';
+  }
+
+  private handleFieldDragEnd(event: DragEvent) {
+    const target = event.target as HTMLElement;
+    target.style.opacity = '1';
+    this.draggedField = null;
+    this.draggedFieldType = null;
+    this.dragOverCell = null;
+  }
+
+  private handleCellDragOver(event: DragEvent, row: number, column: number) {
+    event.preventDefault();
+    event.dataTransfer!.dropEffect = this.draggedField ? 'move' : 'copy';
+    this.dragOverCell = { row, column };
+  }
+
+  private handleCellDragLeave() {
+    this.dragOverCell = null;
+  }
+
+  private handleCellDrop(event: DragEvent, row: number, column: number) {
+    event.preventDefault();
+    this.dragOverCell = null;
+
+    if (this.draggedField) {
+      // Moving existing field
+      this.fields = this.fields.map(f => 
+        f.id === this.draggedField!.id 
+          ? { ...f, row, column }
+          : f
+      );
+      this.draggedField = null;
+      this.emitLayoutChange();
+    } else if (this.draggedFieldType) {
+      // Adding new field from palette
+      const existingField = this.fields.find(f => f.row === row && f.column === column);
+      if (!existingField) {
+        const newField: FormField = {
+          id: `field-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          type: this.draggedFieldType as any,
+          label: `${this.draggedFieldType.charAt(0).toUpperCase() + this.draggedFieldType.slice(1)} Field`,
+          placeholder: `Enter ${this.draggedFieldType}`,
+          row,
+          column,
+        };
+        
+        if (this.draggedFieldType === 'select') {
+          newField.options = ['Option 1', 'Option 2', 'Option 3'];
+        }
+        
+        this.fields = [...this.fields, newField];
+        this.emitLayoutChange();
+      }
+      this.draggedFieldType = null;
+    }
+  }
+
+  // Resize Methods
+  private handleResizeStart(event: MouseEvent, field: FormField, edge: string) {
+    event.stopPropagation();
+    event.preventDefault();
+    this.resizingField = { field, edge };
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!this.resizingField) return;
+      
+      // For now, we'll just track that resizing is happening
+      // Actual implementation would calculate new columnSpan/rowSpan based on mouse position
+    };
+    
+    const handleMouseUp = () => {
+      this.resizingField = null;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   }
 
   private getSelectedFields(): FormField[] {
@@ -493,9 +713,50 @@ export class FormBuilder extends LitElement {
     const maxRow = this.fields.reduce((max, field) => Math.max(max, field.row), -1);
     const totalRows = Math.max(maxRow + 2, 10);
 
+    const fieldTypes = [
+      { type: 'text', icon: '📝', label: 'Text' },
+      { type: 'number', icon: '🔢', label: 'Number' },
+      { type: 'email', icon: '📧', label: 'Email' },
+      { type: 'textarea', icon: '📄', label: 'Textarea' },
+      { type: 'select', icon: '📋', label: 'Select' },
+      { type: 'checkbox', icon: '☑️', label: 'Checkbox' },
+      { type: 'radio', icon: '🔘', label: 'Radio' },
+    ];
+
     return html`
       <div class="form-builder">
+        <!-- Field Palette Sidebar -->
+        <div class="field-palette">
+          <h3>Field Types</h3>
+          ${fieldTypes.map(ft => html`
+            <div 
+              class="palette-item"
+              draggable="true"
+              @dragstart="${(e: DragEvent) => this.handlePaletteDragStart(e, ft.type)}"
+            >
+              <span class="palette-item-icon">${ft.icon}</span>
+              <span>${ft.label}</span>
+            </div>
+          `)}
+        </div>
+
         <div class="grid-container">
+          <!-- Toolbar -->
+          <div class="toolbar">
+            <span class="toolbar-label">Grid Columns:</span>
+            <input 
+              type="number" 
+              class="toolbar-input"
+              min="1"
+              max="12"
+              .value="${this.columns.toString()}"
+              @input="${(e: InputEvent) => {
+                this.columns = parseInt((e.target as HTMLInputElement).value);
+                this.emitLayoutChange();
+              }}"
+            >
+          </div>
+
           <div class="grid-header" style="--columns: ${this.columns}">
             ${Array.from({ length: this.columns }, (_, i) => html`
               <div class="grid-header-cell">Column ${i + 1}</div>
@@ -514,23 +775,43 @@ export class FormBuilder extends LitElement {
                     style="--columns: ${this.columns}; transform: translateY(${virtualRow.start}px)"
                   >
                     ${rowFields.map((field, colIndex) => {
+                      const isDragOver = this.dragOverCell?.row === virtualRow.index && 
+                                        this.dragOverCell?.column === colIndex;
+                      
                       if (!field) {
                         return html`
                           <div 
-                            class="grid-cell empty"
+                            class="grid-cell empty ${isDragOver ? 'drag-over' : ''}"
                             @dblclick="${() => this.handleCellDoubleClick(virtualRow.index, colIndex)}"
+                            @dragover="${(e: DragEvent) => this.handleCellDragOver(e, virtualRow.index, colIndex)}"
+                            @dragleave="${() => this.handleCellDragLeave()}"
+                            @drop="${(e: DragEvent) => this.handleCellDrop(e, virtualRow.index, colIndex)}"
                           >
-                            ${isLastRow ? html`<div style="text-align: center; color: #999;">Double-click to add field</div>` : ''}
+                            ${isLastRow ? html`<div style="text-align: center; color: #999;">Drag field here or double-click</div>` : ''}
                           </div>
                         `;
                       }
                       
                       return html`
                         <div 
-                          class="grid-cell ${this.selectedFieldIds.has(field.id) ? 'selected' : ''}"
+                          class="grid-cell ${this.selectedFieldIds.has(field.id) ? 'selected' : ''} ${isDragOver ? 'drag-over' : ''}"
+                          draggable="true"
                           @click="${(e: MouseEvent) => this.handleCellClick(field, e)}"
+                          @dragstart="${(e: DragEvent) => this.handleFieldDragStart(e, field)}"
+                          @dragend="${(e: DragEvent) => this.handleFieldDragEnd(e)}"
+                          @dragover="${(e: DragEvent) => this.handleCellDragOver(e, virtualRow.index, colIndex)}"
+                          @dragleave="${() => this.handleCellDragLeave()}"
+                          @drop="${(e: DragEvent) => this.handleCellDrop(e, virtualRow.index, colIndex)}"
                         >
                           ${this.renderFieldContent(field)}
+                          
+                          <!-- Resize Handles -->
+                          <div class="resize-handle resize-right" 
+                               @mousedown="${(e: MouseEvent) => this.handleResizeStart(e, field, 'right')}"></div>
+                          <div class="resize-handle resize-bottom" 
+                               @mousedown="${(e: MouseEvent) => this.handleResizeStart(e, field, 'bottom')}"></div>
+                          <div class="resize-handle resize-corner" 
+                               @mousedown="${(e: MouseEvent) => this.handleResizeStart(e, field, 'corner')}"></div>
                         </div>
                       `;
                     })}
@@ -627,22 +908,7 @@ export class FormBuilder extends LitElement {
             </div>
           `}
 
-          <div class="attribute-group" style="margin-top: 32px;">
-            <label class="attribute-label">Grid Columns</label>
-            <input 
-              type="number" 
-              class="attribute-input"
-              min="1"
-              max="12"
-              .value="${this.columns.toString()}"
-              @input="${(e: InputEvent) => {
-                this.columns = parseInt((e.target as HTMLInputElement).value);
-                this.emitLayoutChange();
-              }}"
-            >
-          </div>
-
-          <div class="actions">
+          <div class="actions" style="margin-top: 32px;">
             <button class="button secondary" @click="${() => this.exportJSON()}">Export JSON</button>
           </div>
           

@@ -5,15 +5,17 @@ A customizable, high-performance form builder built with Lit and TanStack Virtua
 ## Features
 
 - ✨ **Lit-based Web Component** - Fast, lightweight, and framework-agnostic
-- 🎯 **TanStack Virtual Integration** - Efficient virtual scrolling for infinite rows
-- 📐 **Customizable Grid** - Default 4 columns, adjustable up to 12
+- 🎯 **Virtual Scrolling** - Efficient rendering for infinite rows
+- 📐 **Customizable Grid** - Default 4 columns, adjustable 1-12 via toolbar
+- 🎨 **Field Palette** - Drag field types from left sidebar to add them
+- 🔄 **Drag & Drop** - Drag fields to reposition them on the grid
+- ↔️ **Field Resizing** - Resize fields by dragging edges (visual handles included)
 - 🔄 **Infinite Rows** - Always includes an empty last row for adding new fields
-- 🎨 **Field Types** - Text, number, email, textarea, select, checkbox, radio
+- 📝 **Field Types** - Text, number, email, textarea, select, checkbox, radio
 - 🖱️ **Field Selection** - Single and multi-select with Ctrl/Cmd+Click
-- 📊 **Attribute Panel** - Edit properties of selected fields
+- 📊 **Properties Panel** - Edit field attributes with proper overflow handling
 - 💾 **JSON Export/Import** - Save and load form layouts
 - 📡 **Event Emission** - Real-time events for layout and selection changes
-- ⚡ **Row/Column Resizing** - Flexible field positioning
 
 ## Installation
 
@@ -144,14 +146,17 @@ Try loading the included `example-layout.json` file using the "Load JSON" button
 
 ## Interacting with the Form Builder
 
-1. **Add Fields** - Double-click on any empty cell to add a new field
-2. **Select Fields** - Click on a field to select it
-3. **Multi-Select** - Hold Ctrl (Windows) or Cmd (Mac) while clicking to select multiple fields
-4. **Edit Properties** - Select a field and use the sidebar to edit its properties
-5. **Delete Fields** - Select fields and click the "Delete" button in the sidebar
-6. **Adjust Columns** - Change the "Grid Columns" value in the sidebar
-7. **Export Layout** - Click "Export JSON" to download the layout as a JSON file
-8. **Import Layout** - Click "Load JSON" to import a previously saved layout
+1. **Add Fields from Palette** - Drag a field type from the left sidebar to any empty cell on the grid
+2. **Add Fields by Double-Click** - Double-click on any empty cell to add a text field
+3. **Move Fields** - Click and drag existing fields to reposition them on the grid
+4. **Resize Fields** - Hover over field edges to see resize handles, then drag to resize (visual feedback provided)
+5. **Select Fields** - Click on a field to select it
+6. **Multi-Select** - Hold Ctrl (Windows) or Cmd (Mac) while clicking to select multiple fields
+7. **Edit Properties** - Select a field and use the right sidebar to edit its properties
+8. **Delete Fields** - Select fields and click the "Delete" button in the properties panel
+9. **Adjust Grid Columns** - Use the "Grid Columns" input in the toolbar at the top
+10. **Export Layout** - Click "Export JSON" to download the layout as a JSON file
+11. **Import Layout** - Click "Load JSON" to import a previously saved layout
 
 ## Architecture
 
