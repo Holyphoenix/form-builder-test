@@ -46,7 +46,7 @@ export class FormBuilder extends LitElement {
   @state() private dragOverCell: { row: number; column: number } | null = null;
   @state() private resizingField: { field: FormField; edge: string } | null = null;
   
-  private readonly ROW_HEIGHT = 96;
+  private readonly ROW_HEIGHT = 108; // 100px cell + 8px gap
   private readonly OVERSCAN = 3;
 
   static styles = css`
@@ -175,8 +175,9 @@ export class FormBuilder extends LitElement {
     }
 
     .grid-cell {
-      min-height: 80px;
-      padding: 12px;
+      min-height: 100px;
+      height: 100px;
+      padding: 8px;
       background: white;
       border: 2px solid #ddd;
       border-radius: 4px;
@@ -261,12 +262,18 @@ export class FormBuilder extends LitElement {
 
     .resize-handle {
       position: absolute;
-      background: transparent;
+      background: rgba(33, 150, 243, 0.3);
       z-index: 10;
+      opacity: 0;
+      transition: opacity 0.2s, background 0.2s;
+    }
+
+    .grid-cell:hover .resize-handle {
+      opacity: 1;
     }
 
     .resize-handle:hover {
-      background: #2196F3;
+      background: rgba(33, 150, 243, 0.8);
     }
 
     .resize-handle.resize-right {
@@ -554,17 +561,61 @@ export class FormBuilder extends LitElement {
     event.preventDefault();
     this.resizingField = { field, edge };
     
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const gridElement = this.shadowRoot?.querySelector('.scroll-container');
+    const cellElement = (event.target as HTMLElement).closest('.grid-cell') as HTMLElement;
+    
+    if (!gridElement || !cellElement) return;
+    
+    const startWidth = cellElement.offsetWidth;
+    const startHeight = cellElement.offsetHeight;
+    const cellRect = cellElement.getBoundingClientRect();
+    
+    // Calculate cell width (approximate column width)
+    const gridRect = gridElement.getBoundingClientRect();
+    const columnWidth = (gridRect.width - 32) / this.columns; // 32 = padding
+    
     const handleMouseMove = (e: MouseEvent) => {
       if (!this.resizingField) return;
       
-      // For now, we'll just track that resizing is happening
-      // Actual implementation would calculate new columnSpan/rowSpan based on mouse position
+      const deltaX = e.clientX - startX;
+      const deltaY = e.clientY - startY;
+      
+      if (edge === 'right' || edge === 'corner') {
+        // Calculate new column span based on width change
+        const newWidth = startWidth + deltaX;
+        const newColumnSpan = Math.max(1, Math.round(newWidth / columnWidth));
+        
+        // Update field's columnSpan
+        this.fields = this.fields.map(f => 
+          f.id === field.id 
+            ? { ...f, columnSpan: newColumnSpan }
+            : f
+        );
+        this.requestUpdate();
+      }
+      
+      if (edge === 'bottom' || edge === 'corner') {
+        // Calculate new row span based on height change
+        const newHeight = startHeight + deltaY;
+        const newRowSpan = Math.max(1, Math.round(newHeight / this.ROW_HEIGHT));
+        
+        // Update field's rowSpan
+        this.fields = this.fields.map(f => 
+          f.id === field.id 
+            ? { ...f, rowSpan: newRowSpan }
+            : f
+        );
+        this.requestUpdate();
+      }
     };
     
     const handleMouseUp = () => {
       this.resizingField = null;
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      this.emitLayoutChange();
     };
     
     document.addEventListener('mousemove', handleMouseMove);
@@ -795,6 +846,7 @@ export class FormBuilder extends LitElement {
                       return html`
                         <div 
                           class="grid-cell ${this.selectedFieldIds.has(field.id) ? 'selected' : ''} ${isDragOver ? 'drag-over' : ''}"
+                          style="grid-column: span ${field.columnSpan || 1}; grid-row: span ${field.rowSpan || 1};"
                           draggable="true"
                           @click="${(e: MouseEvent) => this.handleCellClick(field, e)}"
                           @dragstart="${(e: DragEvent) => this.handleFieldDragStart(e, field)}"
