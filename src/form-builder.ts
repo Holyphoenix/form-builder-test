@@ -46,7 +46,7 @@ export class FormBuilder extends LitElement {
   @state() private dragOverCell: { row: number; column: number } | null = null;
   @state() private resizingField: { field: FormField; edge: string } | null = null;
   
-  private readonly ROW_HEIGHT = 108; // 100px cell + 8px gap
+  private readonly ROW_HEIGHT = 98; // 90px cell + 8px gap
   private readonly OVERSCAN = 3;
 
   static styles = css`
@@ -175,9 +175,9 @@ export class FormBuilder extends LitElement {
     }
 
     .grid-cell {
-      min-height: 100px;
-      height: 100px;
-      padding: 8px;
+      min-height: 90px;
+      height: 90px;
+      padding: 6px;
       background: white;
       border: 2px solid #ddd;
       border-radius: 4px;
@@ -188,6 +188,12 @@ export class FormBuilder extends LitElement {
       gap: 4px;
       overflow: hidden;
       position: relative;
+    }
+
+    .grid-cell.resizing {
+      opacity: 0.8;
+      border-color: #2196F3;
+      box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
     }
 
     .grid-cell:hover {
@@ -568,6 +574,9 @@ export class FormBuilder extends LitElement {
     
     if (!gridElement || !cellElement) return;
     
+    // Add visual feedback class
+    cellElement.classList.add('resizing');
+    
     const startWidth = cellElement.offsetWidth;
     const startHeight = cellElement.offsetHeight;
     const cellRect = cellElement.getBoundingClientRect();
@@ -584,8 +593,9 @@ export class FormBuilder extends LitElement {
       
       if (edge === 'right' || edge === 'corner') {
         // Calculate new column span based on width change
+        // Use a threshold of 40% into next column for snapping (instead of 50% with rounding)
         const newWidth = startWidth + deltaX;
-        const newColumnSpan = Math.max(1, Math.round(newWidth / columnWidth));
+        const newColumnSpan = Math.max(1, Math.floor(newWidth / columnWidth + 0.4));
         
         // Update field's columnSpan
         this.fields = this.fields.map(f => 
@@ -598,8 +608,9 @@ export class FormBuilder extends LitElement {
       
       if (edge === 'bottom' || edge === 'corner') {
         // Calculate new row span based on height change
+        // Use a threshold of 40% into next row for snapping
         const newHeight = startHeight + deltaY;
-        const newRowSpan = Math.max(1, Math.round(newHeight / this.ROW_HEIGHT));
+        const newRowSpan = Math.max(1, Math.floor(newHeight / this.ROW_HEIGHT + 0.4));
         
         // Update field's rowSpan
         this.fields = this.fields.map(f => 
@@ -612,6 +623,9 @@ export class FormBuilder extends LitElement {
     };
     
     const handleMouseUp = () => {
+      // Remove visual feedback class
+      cellElement.classList.remove('resizing');
+      
       this.resizingField = null;
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
