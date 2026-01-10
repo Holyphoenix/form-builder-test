@@ -45,6 +45,7 @@ export class FormBuilder extends LitElement {
   @state() private draggedFieldType: string | null = null;
   @state() private dragOverCell: { row: number; column: number } | null = null;
   @state() private resizingField: { field: FormField; edge: string } | null = null;
+  @state() private collisionWarning: { row: number; column: number } | null = null;
   
   private readonly ROW_HEIGHT = 88; // 80px min cell + 8px gap
   private readonly OVERSCAN = 3;
@@ -226,6 +227,21 @@ export class FormBuilder extends LitElement {
     .grid-cell.empty.drag-over {
       border-color: #4CAF50;
       background: #E8F5E9;
+    }
+
+    .grid-cell.collision-warning {
+      border-color: #FF5722 !important;
+      background: #FFEBEE !important;
+      animation: pulse-warning 0.6s ease-in-out infinite;
+    }
+
+    @keyframes pulse-warning {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.7;
+      }
     }
 
     .field-label {
@@ -412,6 +428,80 @@ export class FormBuilder extends LitElement {
     }
   }
 
+  // Collision Detection Methods
+  private checkCollision(row: number, column: number, columnSpan: number, rowSpan: number, excludeFieldId?: string): boolean {
+    // Check if the field would overlap with any existing fields
+    for (const field of this.fields) {
+      if (excludeFieldId && field.id === excludeFieldId) continue;
+      
+      const fieldColumnSpan = field.columnSpan || 1;
+      const fieldRowSpan = field.rowSpan || 1;
+      
+      // Check if there's an overlap
+      const columnOverlap = column < field.column + fieldColumnSpan && 
+                           column + columnSpan > field.column;
+      const rowOverlap = row < field.row + fieldRowSpan && 
+                        row + rowSpan > field.row;
+      
+      if (columnOverlap && rowOverlap) {
+        return true; // Collision detected
+      }
+    }
+    return false;
+  }
+
+  private findNextAvailablePosition(columnSpan: number = 1, rowSpan: number = 1): { row: number; column: number } {
+    // Start from row 0 and search for the first available position
+    let row = 0;
+    while (row < 1000) { // Safety limit
+      for (let col = 0; col <= this.columns - columnSpan; col++) {
+        if (!this.checkCollision(row, col, columnSpan, rowSpan)) {
+          return { row, column: col };
+        }
+      }
+      row++;
+    }
+    // Fallback to end of grid
+    const maxRow = this.fields.reduce((max, field) => Math.max(max, field.row), -1);
+    return { row: maxRow + 1, column: 0 };
+  }
+
+  private repositionConflictingFields(newField: FormField, excludeFieldId?: string) {
+    // Find all fields that would conflict with the new field
+    const conflictingFields: FormField[] = [];
+    const newColumnSpan = newField.columnSpan || 1;
+    const newRowSpan = newField.rowSpan || 1;
+    
+    for (const field of this.fields) {
+      if (excludeFieldId && field.id === excludeFieldId) continue;
+      
+      const fieldColumnSpan = field.columnSpan || 1;
+      const fieldRowSpan = field.rowSpan || 1;
+      
+      const columnOverlap = newField.column < field.column + fieldColumnSpan && 
+                           newField.column + newColumnSpan > field.column;
+      const rowOverlap = newField.row < field.row + fieldRowSpan && 
+                        newField.row + newRowSpan > field.row;
+      
+      if (columnOverlap && rowOverlap) {
+        conflictingFields.push(field);
+      }
+    }
+    
+    // Reposition each conflicting field to the next available position
+    for (const conflictingField of conflictingFields) {
+      const fieldColumnSpan = conflictingField.columnSpan || 1;
+      const fieldRowSpan = conflictingField.rowSpan || 1;
+      const newPos = this.findNextAvailablePosition(fieldColumnSpan, fieldRowSpan);
+      
+      this.fields = this.fields.map(f => 
+        f.id === conflictingField.id 
+          ? { ...f, row: newPos.row, column: newPos.column }
+          : f
+      );
+    }
+  }
+
   private getVirtualRows() {
     const maxRow = this.fields.reduce((max, field) => Math.max(max, field.row), -1);
     const totalRows = Math.max(maxRow + 2, 10); // Always have at least 10 rows, +1 for empty last row
@@ -517,46 +607,74 @@ export class FormBuilder extends LitElement {
     event.preventDefault();
     event.dataTransfer!.dropEffect = this.draggedField ? 'move' : 'copy';
     this.dragOverCell = { row, column };
+    
+    // Check for collisions and show warning
+    const columnSpan = this.draggedField?.columnSpan || 1;
+    const rowSpan = this.draggedField?.rowSpan || 1;
+    const excludeId = this.draggedField?.id;
+    
+    if (this.checkCollision(row, column, columnSpan, rowSpan, excludeId)) {
+      this.collisionWarning = { row, column };
+    } else {
+      this.collisionWarning = null;
+    }
   }
 
   private handleCellDragLeave() {
     this.dragOverCell = null;
+    this.collisionWarning = null;
   }
 
   private handleCellDrop(event: DragEvent, row: number, column: number) {
     event.preventDefault();
     this.dragOverCell = null;
+    this.collisionWarning = null;
 
     if (this.draggedField) {
       // Moving existing field
+      const updatedField = { ...this.draggedField, row, column };
+      const columnSpan = updatedField.columnSpan || 1;
+      const rowSpan = updatedField.rowSpan || 1;
+      
+      // Update the field position
       this.fields = this.fields.map(f => 
         f.id === this.draggedField!.id 
-          ? { ...f, row, column }
+          ? updatedField
           : f
       );
+      
+      // Check for collisions and reposition conflicting fields
+      if (this.checkCollision(row, column, columnSpan, rowSpan, updatedField.id)) {
+        this.repositionConflictingFields(updatedField, updatedField.id);
+      }
+      
       this.draggedField = null;
       this.emitLayoutChange();
     } else if (this.draggedFieldType) {
       // Adding new field from palette
-      const existingField = this.fields.find(f => f.row === row && f.column === column);
-      if (!existingField) {
-        const newField: FormField = {
-          id: `field-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          type: this.draggedFieldType as any,
-          label: `${this.draggedFieldType.charAt(0).toUpperCase() + this.draggedFieldType.slice(1)} Field`,
-          placeholder: `Enter ${this.draggedFieldType}`,
-          row,
-          column,
-        };
-        
-        if (this.draggedFieldType === 'select') {
-          newField.options = ['Option 1', 'Option 2', 'Option 3'];
-        }
-        
-        this.fields = [...this.fields, newField];
-        this.emitLayoutChange();
+      const newField: FormField = {
+        id: `field-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        type: this.draggedFieldType as any,
+        label: `${this.draggedFieldType.charAt(0).toUpperCase() + this.draggedFieldType.slice(1)} Field`,
+        placeholder: `Enter ${this.draggedFieldType}`,
+        row,
+        column,
+      };
+      
+      if (this.draggedFieldType === 'select') {
+        newField.options = ['Option 1', 'Option 2', 'Option 3'];
       }
+      
+      // Add the new field
+      this.fields = [...this.fields, newField];
+      
+      // Check for collisions and reposition conflicting fields
+      if (this.checkCollision(row, column, 1, 1, newField.id)) {
+        this.repositionConflictingFields(newField, newField.id);
+      }
+      
       this.draggedFieldType = null;
+      this.emitLayoutChange();
     }
   }
 
@@ -624,6 +742,19 @@ export class FormBuilder extends LitElement {
     const handleMouseUp = () => {
       // Remove visual feedback class
       cellElement.classList.remove('resizing');
+      
+      // Check for collisions after resize and reposition if needed
+      if (this.resizingField) {
+        const resizedField = this.fields.find(f => f.id === this.resizingField!.field.id);
+        if (resizedField) {
+          const columnSpan = resizedField.columnSpan || 1;
+          const rowSpan = resizedField.rowSpan || 1;
+          
+          if (this.checkCollision(resizedField.row, resizedField.column, columnSpan, rowSpan, resizedField.id)) {
+            this.repositionConflictingFields(resizedField, resizedField.id);
+          }
+        }
+      }
       
       this.resizingField = null;
       document.removeEventListener('mousemove', handleMouseMove);
@@ -845,6 +976,13 @@ export class FormBuilder extends LitElement {
                                         this.dragOverCell?.column <= colIndex &&
                                         colIndex < (this.dragOverCell?.column || 0) + draggedColumnSpan;
                       
+                      // Check if this cell has a collision warning
+                      const hasCollisionWarning = this.collisionWarning && 
+                                                  field && 
+                                                  this.collisionWarning.row === virtualRow.index &&
+                                                  this.collisionWarning.column <= colIndex &&
+                                                  colIndex < (this.collisionWarning.column || 0) + draggedColumnSpan;
+                      
                       if (!field) {
                         return html`
                           <div 
@@ -861,7 +999,7 @@ export class FormBuilder extends LitElement {
                       
                       return html`
                         <div 
-                          class="grid-cell ${this.selectedFieldIds.has(field.id) ? 'selected' : ''} ${isDragOver ? 'drag-over' : ''}"
+                          class="grid-cell ${this.selectedFieldIds.has(field.id) ? 'selected' : ''} ${isDragOver ? 'drag-over' : ''} ${hasCollisionWarning ? 'collision-warning' : ''}"
                           style="grid-column: span ${field.columnSpan || 1}; grid-row: span ${field.rowSpan || 1};"
                           draggable="true"
                           @click="${(e: MouseEvent) => this.handleCellClick(field, e)}"
