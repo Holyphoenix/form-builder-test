@@ -7,7 +7,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:performance": "node performance-test.js",
+    "test:performance:1k": "node performance-test.js --count=1000",
+    "test:performance:5k": "node performance-test.js --count=5000"
   },
   "keywords": ["lit", "form-builder", "virtual-scroll"],
   "author": "",
@@ -18,6 +21,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.0.5",
+    "playwright": "^1.49.1",
     "typescript": "^5.9.3",
     "vite": "^7.3.1"
   }
