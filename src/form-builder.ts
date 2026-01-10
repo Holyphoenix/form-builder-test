@@ -1,6 +1,20 @@
 import { LitElement, html, css, PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
+/**
+ * Form Builder Component with Virtual Scrolling
+ * 
+ * This component uses a custom virtual scrolling implementation inspired by TanStack Virtual.
+ * While @tanstack/virtual-core is available as a dependency, we implemented a simpler
+ * custom solution that integrates better with Lit's reactive rendering system.
+ * 
+ * The virtual scrolling approach:
+ * - Only renders visible rows plus an overscan buffer
+ * - Uses scroll position to calculate which rows to render
+ * - Positions rows with CSS transforms for smooth scrolling
+ * - Automatically adjusts for dynamic row counts
+ */
+
 export interface FormField {
   id: string;
   type: 'text' | 'number' | 'email' | 'textarea' | 'select' | 'checkbox' | 'radio';

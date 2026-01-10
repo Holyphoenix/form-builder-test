@@ -113,12 +113,34 @@ interface FormField {
 The component exposes methods through the custom element API:
 
 ```javascript
-// Export layout as JSON
+// Get the current layout as JSON
 const layout = formBuilder.getLayoutJSON();
+// Returns: { columns: 4, fields: [...] }
 
-// Programmatically export to file
+// Programmatically export layout to a file
 formBuilder.exportJSON();
+
+// Access fields array
+const fields = formBuilder.fields;
+
+// Set fields programmatically
+formBuilder.fields = [
+  {
+    id: 'my-field',
+    type: 'text',
+    label: 'Custom Field',
+    row: 0,
+    column: 0
+  }
+];
+
+// Change number of columns
+formBuilder.columns = 6;
 ```
+
+### Loading an Example Layout
+
+Try loading the included `example-layout.json` file using the "Load JSON" button in the form builder interface.
 
 ## Interacting with the Form Builder
 
@@ -134,9 +156,21 @@ formBuilder.exportJSON();
 ## Architecture
 
 - **Lit** - Modern web component framework for reactive UI
-- **TanStack Virtual** - High-performance virtual scrolling for large lists
+- **Virtual Scrolling** - Custom implementation for high-performance rendering of infinite rows
+  - Only renders visible rows plus overscan buffer
+  - Efficient memory usage even with thousands of potential rows
+  - Smooth scrolling with `transform: translateY()` positioning
 - **TypeScript** - Type-safe development
 - **Vite** - Fast build tool and dev server
+
+### Virtual Scrolling Implementation
+
+The form builder uses a custom virtual scrolling implementation that:
+- Calculates which rows are visible based on scroll position and container height
+- Renders only visible rows plus a small overscan buffer (3 rows above/below)
+- Uses absolute positioning with CSS transforms for smooth scrolling
+- Automatically adjusts the total height based on the number of rows
+- Always ensures at least 10 rows and includes an empty last row for adding fields
 
 ## License
 

@@ -1,7 +1,7 @@
 {
   "name": "form-builder-test",
   "version": "1.0.0",
-  "description": "Lit-based form builder with TanStack Virtual",
+  "description": "Lit-based form builder with virtual scrolling (TanStack Virtual inspired)",
   "type": "module",
   "main": "dist/form-builder.js",
   "scripts": {

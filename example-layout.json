@@ -1,0 +1,58 @@
+{
+  "columns": 4,
+  "fields": [
+    {
+      "id": "field-example-1",
+      "type": "text",
+      "label": "Full Name",
+      "placeholder": "Enter your full name",
+      "required": true,
+      "row": 0,
+      "column": 0
+    },
+    {
+      "id": "field-example-2",
+      "type": "email",
+      "label": "Email",
+      "placeholder": "your.email@example.com",
+      "required": true,
+      "row": 0,
+      "column": 1
+    },
+    {
+      "id": "field-example-3",
+      "type": "number",
+      "label": "Phone",
+      "placeholder": "123-456-7890",
+      "required": false,
+      "row": 0,
+      "column": 2
+    },
+    {
+      "id": "field-example-4",
+      "type": "select",
+      "label": "Department",
+      "options": ["Engineering", "Marketing", "Sales", "Support"],
+      "required": true,
+      "row": 0,
+      "column": 3
+    },
+    {
+      "id": "field-example-5",
+      "type": "textarea",
+      "label": "Message",
+      "placeholder": "Enter your message here...",
+      "required": false,
+      "row": 1,
+      "column": 0
+    },
+    {
+      "id": "field-example-6",
+      "type": "checkbox",
+      "label": "I agree to the terms and conditions",
+      "required": true,
+      "row": 2,
+      "column": 0
+    }
+  ]
+}
