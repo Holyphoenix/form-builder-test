@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lit Form Builder Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .header {
+      background: #2196F3;
+      color: white;
+      padding: 16px 24px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .header h1 {
+      font-size: 24px;
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .console {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 200px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      padding: 12px;
+      overflow-y: auto;
+      border-top: 1px solid #333;
+      display: none;
+    }
+
+    .console.visible {
+      display: block;
+    }
+
+    .console-line {
+      margin-bottom: 4px;
+      padding: 4px;
+      border-left: 3px solid #4CAF50;
+      padding-left: 8px;
+    }
+
+    .console-line.event {
+      border-left-color: #2196F3;
+    }
+
+    .toggle-console {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: #2196F3;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 24px;
+      cursor: pointer;
+      font-weight: 600;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      z-index: 1000;
+    }
+
+    .toggle-console:hover {
+      background: #0b7dda;
+    }
+
+    form-builder {
+      height: calc(100vh - 72px);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎨 Lit Form Builder with TanStack Virtual</h1>
+    <p>Double-click empty cells to add fields • Click fields to select • Ctrl/Cmd+Click for multi-select</p>
+  </div>
+
+  <form-builder id="formBuilder"></form-builder>
+
+  <button class="toggle-console" onclick="toggleConsole()">Toggle Event Console</button>
+
+  <div class="console" id="console">
+    <div style="color: #4CAF50; font-weight: bold; margin-bottom: 8px;">📋 Event Console</div>
+  </div>
+
+  <script type="module">
+    import { FormBuilder } from './src/form-builder.ts';
+
+    const formBuilder = document.getElementById('formBuilder');
+    const consoleEl = document.getElementById('console');
+
+    // Add some sample fields
+    formBuilder.fields = [
+      {
+        id: 'field-1',
+        type: 'text',
+        label: 'First Name',
+        placeholder: 'Enter first name',
+        required: true,
+        row: 0,
+        column: 0
+      },
+      {
+        id: 'field-2',
+        type: 'text',
+        label: 'Last Name',
+        placeholder: 'Enter last name',
+        required: true,
+        row: 0,
+        column: 1
+      },
+      {
+        id: 'field-3',
+        type: 'email',
+        label: 'Email Address',
+        placeholder: 'your.email@example.com',
+        required: true,
+        row: 0,
+        column: 2
+      },
+      {
+        id: 'field-4',
+        type: 'number',
+        label: 'Age',
+        placeholder: 'Enter age',
+        row: 0,
+        column: 3
+      },
+      {
+        id: 'field-5',
+        type: 'textarea',
+        label: 'Comments',
+        placeholder: 'Enter your comments here...',
+        row: 1,
+        column: 0
+      },
+      {
+        id: 'field-6',
+        type: 'select',
+        label: 'Country',
+        options: ['USA', 'Canada', 'UK', 'Australia'],
+        required: true,
+        row: 1,
+        column: 1
+      },
+      {
+        id: 'field-7',
+        type: 'checkbox',
+        label: 'Subscribe to newsletter',
+        row: 2,
+        column: 0
+      }
+    ];
+
+    // Listen to events
+    formBuilder.addEventListener('layout-change', (e) => {
+      logToConsole('layout-change', e.detail);
+    });
+
+    formBuilder.addEventListener('selection-change', (e) => {
+      logToConsole('selection-change', e.detail);
+    });
+
+    function logToConsole(eventName, data) {
+      const line = document.createElement('div');
+      line.className = 'console-line event';
+      const timestamp = new Date().toLocaleTimeString();
+      line.innerHTML = `<strong>[${timestamp}] ${eventName}</strong><br>${JSON.stringify(data, null, 2).substring(0, 200)}...`;
+      consoleEl.appendChild(line);
+      consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+
+    window.toggleConsole = function() {
+      consoleEl.classList.toggle('visible');
+    };
+  </script>
+</body>
+</html>
