@@ -429,10 +429,12 @@ export class FormBuilder extends LitElement {
   }
 
   // Collision Detection Methods
-  private checkCollision(row: number, column: number, columnSpan: number, rowSpan: number, excludeFieldId?: string): boolean {
+  private checkCollision(row: number, column: number, columnSpan: number, rowSpan: number, excludeFieldIds?: string | string[]): boolean {
     // Check if the field would overlap with any existing fields
+    const excludeIds = typeof excludeFieldIds === 'string' ? [excludeFieldIds] : (excludeFieldIds || []);
+    
     for (const field of this.fields) {
-      if (excludeFieldId && field.id === excludeFieldId) continue;
+      if (excludeIds.includes(field.id)) continue;
       
       const fieldColumnSpan = field.columnSpan || 1;
       const fieldRowSpan = field.rowSpan || 1;
@@ -450,12 +452,12 @@ export class FormBuilder extends LitElement {
     return false;
   }
 
-  private findNextAvailablePosition(columnSpan: number = 1, rowSpan: number = 1): { row: number; column: number } {
+  private findNextAvailablePosition(columnSpan: number = 1, rowSpan: number = 1, excludeFieldIds: string[] = []): { row: number; column: number } {
     // Start from row 0 and search for the first available position
     let row = 0;
     while (row < 1000) { // Safety limit
       for (let col = 0; col <= this.columns - columnSpan; col++) {
-        if (!this.checkCollision(row, col, columnSpan, rowSpan)) {
+        if (!this.checkCollision(row, col, columnSpan, rowSpan, excludeFieldIds)) {
           return { row, column: col };
         }
       }
@@ -488,11 +490,14 @@ export class FormBuilder extends LitElement {
       }
     }
     
+    // Build list of field IDs to exclude when finding positions (the moving field + all conflicting fields)
+    const excludeIds = [excludeFieldId, ...conflictingFields.map(f => f.id)].filter(Boolean) as string[];
+    
     // Reposition each conflicting field to the next available position
     for (const conflictingField of conflictingFields) {
       const fieldColumnSpan = conflictingField.columnSpan || 1;
       const fieldRowSpan = conflictingField.rowSpan || 1;
-      const newPos = this.findNextAvailablePosition(fieldColumnSpan, fieldRowSpan);
+      const newPos = this.findNextAvailablePosition(fieldColumnSpan, fieldRowSpan, excludeIds);
       
       this.fields = this.fields.map(f => 
         f.id === conflictingField.id 
