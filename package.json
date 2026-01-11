@@ -1,0 +1,28 @@
+{
+  "name": "form-builder-test",
+  "version": "1.0.0",
+  "description": "Lit-based form builder with virtual scrolling (TanStack Virtual inspired)",
+  "type": "module",
+  "main": "dist/form-builder.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:performance": "node performance-test.js",
+    "test:performance:1k": "node performance-test.js --count=1000",
+    "test:performance:5k": "node performance-test.js --count=5000"
+  },
+  "keywords": ["lit", "form-builder", "virtual-scroll"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@tanstack/virtual-core": "^3.13.18",
+    "lit": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.5",
+    "playwright": "^1.49.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  }
+}
