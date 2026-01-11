@@ -706,11 +706,11 @@ export class FormBuilder extends LitElement {
           
           if (this.checkCollision(resizedField.row, resizedField.column, columnSpan, rowSpan, resizedField.id)) {
             // Collision detected - revert to original size
-            const originalColumnSpan = field.columnSpan || 1;
-            const originalRowSpan = field.rowSpan || 1;
+            const originalColumnSpan = this.resizingField.field.columnSpan || 1;
+            const originalRowSpan = this.resizingField.field.rowSpan || 1;
             
             this.fields = this.fields.map(f => 
-              f.id === field.id 
+              f.id === this.resizingField!.field.id 
                 ? { ...f, columnSpan: originalColumnSpan, rowSpan: originalRowSpan }
                 : f
             );
